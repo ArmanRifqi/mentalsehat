@@ -103,4 +103,25 @@ class PatientController extends Controller
         return redirect()->route('patients.index')
             ->with('success', 'Data pasien berhasil dihapus.');
     }
+
+    /**
+     * Search patients by name or ID
+     */
+    public function search(Request $request)
+    {
+        $query = $request->get('q');
+
+        if (empty($query)) {
+            $patients = Patient::all();
+        } else {
+            $patients = Patient::where('nama', 'like', "%{$query}%")
+                ->orWhere('id_pasien', 'like', "%{$query}%")
+                ->get();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $patients
+        ]);
+    }
 }

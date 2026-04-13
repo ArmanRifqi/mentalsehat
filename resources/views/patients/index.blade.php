@@ -20,8 +20,17 @@
             </div>
         @else
             <div class="section-card p-4">
+                <div class="mb-3">
+                    <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="🔍 Cari pasien berdasarkan nama atau ID..." style="border-radius: 0.9rem;">
+                </div>
+                <div id="loadingIndicator" class="d-none mb-3">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    Mencari...
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0" id="patientsTable">
                         <thead class="table-light border-bottom">
                             <tr>
                                 <th>ID Pasien</th>
@@ -32,7 +41,7 @@
                                 <th class="text-end">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="patientsList">
                             @foreach($patients as $patient)
                                 <tr>
                                     <td><code>{{ $patient->id_pasien }}</code></td>
@@ -60,7 +69,81 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="noResultsMessage" class="d-none alert alert-warning mt-3">
+                    Tidak ada pasien yang sesuai dengan pencarian Anda.
+                </div>
             </div>
         @endif
     </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const patientsList = document.getElementById('patientsList');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+
+        let searchTimeout;
+
+        searchInput.addEventListener('keyup', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query === '') {
+                loadingIndicator.classList.add('d-none');
+                noResultsMessage.classList.add('d-none');
+                location.reload();
+                return;
+            }
+
+            loadingIndicator.classList.remove('d-none');
+            noResultsMessage.classList.add('d-none');
+
+            searchTimeout = setTimeout(() => {
+                fetch(`{{ route('patients.search') }}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        loadingIndicator.classList.add('d-none');
+                        patientsList.innerHTML = '';
+
+                        if (data.data.length === 0) {
+                            noResultsMessage.classList.remove('d-none');
+                            return;
+                        }
+
+                        noResultsMessage.classList.add('d-none');
+
+                        data.data.forEach(patient => {
+                            const row = document.createElement('tr');
+                            const genderBadge = patient.jenis_kelamin === 'L' 
+                                ? '<span class="badge bg-primary">Laki-laki</span>'
+                                : '<span class="badge bg-danger">Perempuan</span>';
+                            
+                            const formattedDate = new Date(patient.tanggal_tes).toLocaleDateString('id-ID');
+
+                            row.innerHTML = `
+                                <td><code>${patient.id_pasien}</code></td>
+                                <td>${patient.nama}</td>
+                                <td>${patient.umur} tahun</td>
+                                <td>${genderBadge}</td>
+                                <td>${formattedDate}</td>
+                                <td class="text-end">
+                                    <a href="/patients/${patient.id_pasien}" class="btn btn-sm btn-outline-primary me-1">Lihat</a>
+                                    <a href="/patients/${patient.id_pasien}/edit" class="btn btn-sm btn-warning me-1">Edit</a>
+                                    <form action="/patients/${patient.id_pasien}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus?')">Hapus</button>
+                                    </form>
+                                </td>
+                            `;
+                            patientsList.appendChild(row);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        loadingIndicator.classList.add('d-none');
+                    });
+            }, 300);
+        });
+    </script>
 </x-app-layout>

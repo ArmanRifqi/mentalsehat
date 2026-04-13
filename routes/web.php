@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
 
     // Patient routes
     Route::resource('patients', PatientController::class);
+    Route::get('/patients-search', [PatientController::class, 'search'])->name('patients.search');
 
     // Test routes - taking test and managing test questions
     Route::get('/test/create/{id_pasien}', [TestController::class, 'create'])->name('test.create');
